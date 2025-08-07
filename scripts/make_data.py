@@ -27,6 +27,13 @@ def add_h3_field(
         latitude_field: field in input CSV with latitude (Y) coordinate values
         output_h3_field_name: field to add to output CSV with H3 indices
     """
+    # make sure the resolution is, in fact, a numeric integer
+    if isinstance(h3_resolution, str):
+        if not h3_resolution.isdigit():
+            raise ValueError('h3_resolution must be an integer')
+        else:
+            h3_resolution = int(h3_resolution)
+
     logger.debug(f'Using "{longitude_field}" for X coordinates and "{latitude_field}" for '
                  f"coordinates to calculate H3 indices at H3 level {h3_resolution}.")
 
@@ -94,6 +101,9 @@ if __name__ == "__main__":
     # use the log level from the config to set up logging
     logger = logging.getLogger(Path(__file__).stem)
     logger.setLevel(level=log_level)
+
+    # set the default logger to the same level so messages bubble up
+    logging.basicConfig(level=log_level)
 
     # add H3 indices and write to output table
     add_h3_field(

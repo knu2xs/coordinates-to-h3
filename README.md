@@ -1,4 +1,4 @@
-# coordinates-to-h3
+# Coordinates-to-H3
 
 Convert coordinates to H3 indices from a CSV file.
 

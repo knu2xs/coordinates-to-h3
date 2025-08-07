@@ -20,7 +20,7 @@ GOTO %1
 :: Build the local environment from the environment file
 :env
     :: Create new environment and add h3-py
-    CALL conda create -p %CONDA_DIR% -c conda-forge "h3-py>=4.3"
+    CALL conda create -p %CONDA_DIR% -c conda-forge "h3-py>=4.3" "jupyterlab"
     GOTO end
 
 :end

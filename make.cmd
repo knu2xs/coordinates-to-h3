@@ -20,7 +20,12 @@ GOTO %1
 :: Build the local environment from the environment file
 :env
     :: Create new environment and add h3-py
-    CALL conda create -p %CONDA_DIR% -c conda-forge "h3-py>=4.3" "jupyterlab"
+    CALL conda create -p %CONDA_DIR% -c conda-forge "h3-py>=4.3" "jupyterlab" -y
+    GOTO end
+
+:: Start Jupyter Lab with ability to connect from another machine
+:jupyter
+    CALL conda run -p %CONDA_DIR% python -m jupyterlab --ip=0.0.0.0 --allow-root --NotebookApp.token=""
     GOTO end
 
 :end

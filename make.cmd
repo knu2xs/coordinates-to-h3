@@ -25,7 +25,7 @@ GOTO %1
 
 :: Start Jupyter Lab with ability to connect from another machine
 :jupyter
-    CALL conda run -p %CONDA_DIR% python -m jupyterlab --ip=0.0.0.0 --allow-root --NotebookApp.token=""
+    CALL conda run -p %CONDA_DIR% python -m jupyterlab
     GOTO end
 
 :end

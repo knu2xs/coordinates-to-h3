@@ -22,6 +22,12 @@ Set paths to the input and output data in the `config.ini` file. Most notably, s
 make data
 ```
 
-This runs the execution code in the Python module, `./scripts/make_data.py`, using the configuration
+Run the execution code in the Python module, `./scripts/make_data.py`, using the configuration
 options from `./config.ini` to copy the source CSV file, add H3 indices, and write to the output
 CSV file.
+
+``` cmd
+make juptyer
+```
+
+Start jupyter notebook using the project environment created using `make env` to run the example noteboook.

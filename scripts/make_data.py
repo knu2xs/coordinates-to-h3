@@ -1,55 +1,105 @@
-"""
-Licensing
-
-Copyright 2020 Esri
-
-Licensed under the Apache License, Version 2.0 (the "License"); You
-may not use this file except in compliance with the License. You may
-obtain a copy of the License at
-
-http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
-implied. See the License for the specific language governing
-permissions and limitations under the License.
-
-A copy of the license is available in the repository's
-LICENSE file.
-"""
 from configparser import ConfigParser
+import csv
 import logging
 from pathlib import Path
-import importlib.util
-import sys
+from typing import Optional
+from warnings import warn
 
-# path to the root of the project
-dir_prj = Path(__file__).parent.parent
+import h3
 
-# if the project package is not installed in the environment
-if importlib.util.find_spec('coords_to_h3') is None:
+
+def add_h3_field(
+    input_file: Path, 
+    output_file: Path, 
+    h3_resolution: int = 8,
+    longitude_field: str = 'longitude', 
+    latitude_field: str = 'latitude',
+    output_h3_field_name: Optional[str] = None
+):
+    """
+    Read a CSV file, calculate an H3 index from the coordinate columns and saves result to a new file.
+
+    Args:
+        input_file: path to the input CSV file
+        output_file: path to the output CSV file
+        h3_resolution: H3 resolution to use for calculating the H3 index
+        longitude_field: field in input CSV with longitude (X) coordinate values
+        latitude_field: field in input CSV with latitude (Y) coordinate values
+        output_h3_field_name: field to add to output CSV with H3 indices
+    """
+    logger.debug(f'Using "{longitude_field}" for X coordinates and "{latitude_field}" for '
+                 f"coordinates to calculate H3 indices at H3 level {h3_resolution}.")
+
+    # if an output field name is not explicitly provided, create one
+    if output_h3_field_name is None:
+        output_h3_field_name = f"h3_{h3_resolution:02d}"
+
+    logger.debug(f'Writing H3 indices to new field named "{output_h3_field_name}"')
     
-    # get the relative path to where the source directory is located
-    src_dir = dir_prj / 'src'
+    # open the source CSV and use a reader to load values as dictionaries
+    with open(input_file, mode='r', newline='', encoding='utf-8') as infile:
+        reader = csv.DictReader(infile)
 
-    # throw an error if the source directory cannot be located
-    if not src_dir.exists():
-        raise EnvironmentError('Unable to import coords_to_h3.')
+        # create a list of output field names with the new H3 field appended to the end
+        fieldnames = reader.fieldnames + [output_h3_field_name]
 
-    # add the source directory to the paths searched when importing
-    sys.path.insert(0, str(src_dir))
+        # open the file to output to using a dictionary writer
+        with open(output_file, mode='w', newline='', encoding='utf-8') as outfile:
+            writer = csv.DictWriter(outfile, fieldnames=fieldnames)
 
-# import coords_to_h3
-import coords_to_h3
+            # write the field names in the first row, the header
+            writer.writeheader()
 
-# read and configure 
-config = ConfigParser()
-config.read('config.ini')
+            # iterate rows in the reader
+            for idx, row in enumerate(reader):
+                
+                # retrive the coordinate values
+                lon_val = row.get(longitude_field)
+                lat_val = row.get(latitude_field)
 
-log_level = config.get('DEFAULT', 'LOG_LEVEL')
-input_data = dir_prj / config.get('DEFAULT', 'INPUT_DATA')
-output_data = dir_prj / config.get('DEFAULT', 'OUTPUT_DATA')
+                # check to ensure both values are not none
+                if lon_val is None or lat_val is None:
+                    warn(f'Cannot get H3 index for row {idx:,} because two coordinates values were not retrieved.')
+                    h3_idx = None
 
-# use the log level from the config to set up basic logging
-logging.basicConfig(level=log_level)
+                else:
+                    h3_idx = h3.latlng_to_cell(float(lat_val), float(lon_val), h3_resolution)
+                
+                # set the H3 index in the row dictionary
+                row[output_h3_field_name] = h3_idx
+
+                # write the row to the output table
+                writer.writerow(row)
+
+    logger.info(f"{idx+1:,} rows written to {output_file}")
+
+    return output_file
+
+if __name__ == "__main__":
+
+    # path to project root
+    dir_prj = Path(__file__).parent.parent
+
+    # read and configure 
+    config = ConfigParser()
+    config.read(dir_prj / 'config.ini')
+
+    log_level = config.get('DEFAULT', 'LOG_LEVEL')
+    input_csv = dir_prj / config.get('DEFAULT', 'INPUT_TABLE')
+    output_csv = dir_prj / config.get('DEFAULT', 'OUTPUT_TABLE')
+    lon_fld = config.get('DEFAULT', 'LONGITUDE_FIELD')
+    lat_fld = config.get('DEFAULT', 'LATITUDE_FIELD')
+    h3_res = config.get('DEFAULT', 'H3_RESOLUTION')
+
+    # use the log level from the config to set up logging
+    logger = logging.getLogger(Path(__file__).stem)
+    logger.setLevel(level=log_level)
+
+    # add H3 indices and write to output table
+    add_h3_field(
+        input_file=input_csv, 
+        output_file=output_csv,
+        h3_resolution=h3_res,
+        longitude_field=lon_fld,
+        latitude_field=lat_fld
+    )
